@@ -132,7 +132,7 @@ pub fn find_associated_item<'tcx>(
     match ancestors.leaf_def(tcx, item.ident, item.kind) {
         Some(node_item) => {
             let substs = tcx.infer_ctxt().enter(|infcx| {
-                let param_env = param_env.with_reveal_all();
+                let param_env = param_env.with_reveal_all_normalized(tcx);
                 let substs = substs.rebase_onto(tcx, trait_def_id, impl_data.substs);
                 let substs = translate_substs(
                     &infcx,

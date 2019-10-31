@@ -1654,7 +1654,7 @@ impl<'tcx> ParamEnv<'tcx> {
     /// environments like codegen or doing optimizations.
     ///
     /// N.B., if you want to have predicates in scope, use `ParamEnv::new`,
-    /// or invoke `param_env.with_reveal_all()`.
+    /// or invoke `param_env.with_reveal_all_normalized()`.
     #[inline]
     pub fn reveal_all() -> Self {
         Self::new(List::empty(), Reveal::All, None)
@@ -1676,8 +1676,17 @@ impl<'tcx> ParamEnv<'tcx> {
     /// the desired behavior during codegen and certain other special
     /// contexts; normally though we want to use `Reveal::UserFacing`,
     /// which is the default.
-    pub fn with_reveal_all(self) -> Self {
-        ty::ParamEnv { reveal: Reveal::All, ..self }
+    ///
+    /// All opaque types in the caller_bounds of the `ParamEnv`
+    /// will be normalized to their underlying types.
+    pub fn with_reveal_all_normalized(self, tcx: TyCtxt<'tcx>) -> Self {
+        /*if self.has_local_value() {
+            panic!("Cannot normalize ParamEnv {:?}", self);
+        }*/
+        let mut new_env = self;
+        new_env.caller_bounds = tcx.normalize_caller_bounds(self.caller_bounds);
+        new_env.reveal = Reveal::All;
+        new_env
     }
 
     /// Returns this same environment but with no caller bounds.
@@ -3193,6 +3202,13 @@ pub fn is_impl_trait_defn(tcx: TyCtxt<'_>, def_id: DefId) -> Option<DefId> {
     None
 }
 
+fn normalize_caller_bounds(
+    tcx: TyCtxt<'tcx>,
+    bounds: &'tcx ty::List<ty::Predicate<'tcx>>,
+) -> &'tcx ty::List<ty::Predicate<'tcx>> {
+    tcx.normalize_impl_trait_types(&bounds)
+}
+
 /// See `ParamEnv` struct definition for details.
 fn param_env(tcx: TyCtxt<'_>, def_id: DefId) -> ParamEnv<'_> {
     // The param_env of an impl Trait type is its defining function's param_env
@@ -3338,6 +3354,7 @@ pub fn provide(providers: &mut ty::query::Providers<'_>) {
         trait_impls_of: trait_def::trait_impls_of_provider,
         instance_def_size_estimate,
         issue33140_self_ty,
+        normalize_caller_bounds,
         ..*providers
     };
 }
