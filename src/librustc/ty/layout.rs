@@ -187,7 +187,8 @@ fn layout_raw<'tcx>(
 ) -> Result<&'tcx LayoutDetails, LayoutError<'tcx>> {
     ty::tls::with_related_context(tcx, move |icx| {
         let rec_limit = *tcx.sess.recursion_limit.get();
-        let (param_env, ty) = query.into_parts();
+        let (mut param_env, ty) = query.into_parts();
+        param_env = param_env.with_reveal_all_normalized(tcx);
 
         if icx.layout_depth > rec_limit {
             tcx.sess.fatal(&format!("overflow representing the type `{}`", ty));
@@ -1935,9 +1936,8 @@ impl<'tcx> LayoutOf for LayoutCx<'tcx, TyCtxt<'tcx>> {
     /// Computes the layout of a type. Note that this implicitly
     /// executes in "reveal all" mode.
     fn layout_of(&self, ty: Ty<'tcx>) -> Self::TyLayout {
-        let param_env = self.param_env.with_reveal_all_normalized(self.tcx);
-        let ty = self.tcx.normalize_erasing_regions(param_env, ty);
-        let details = self.tcx.layout_raw(param_env.and(ty))?;
+        let ty = self.tcx.normalize_erasing_regions(self.param_env, ty);
+        let details = self.tcx.layout_raw(self.param_env.and(ty))?;
         let layout = TyLayout { ty, details };
 
         // N.B., this recording is normally disabled; when enabled, it
@@ -1959,9 +1959,8 @@ impl LayoutOf for LayoutCx<'tcx, ty::query::TyCtxtAt<'tcx>> {
     /// Computes the layout of a type. Note that this implicitly
     /// executes in "reveal all" mode.
     fn layout_of(&self, ty: Ty<'tcx>) -> Self::TyLayout {
-        let param_env = self.param_env.with_reveal_all_normalized(*self.tcx);
-        let ty = self.tcx.normalize_erasing_regions(param_env, ty);
-        let details = self.tcx.layout_raw(param_env.and(ty))?;
+        let ty = self.tcx.normalize_erasing_regions(self.param_env, ty);
+        let details = self.tcx.layout_raw(self.param_env.and(ty))?;
         let layout = TyLayout { ty, details };
 
         // N.B., this recording is normally disabled; when enabled, it

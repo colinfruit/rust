@@ -2372,7 +2372,7 @@ impl<'tcx> Const<'tcx> {
         // if `ty` does not depend on generic parameters, use an empty param_env
         let val = self.eval(tcx, param_env).val;
         if let ConstKind::Value(_) = val {
-            let size = tcx.layout_of(param_env.with_reveal_all_normalized(tcx).and(ty)).ok()?.size;
+            let size = tcx.layout_of(param_env.and(ty)).ok()?.size;
             val.try_to_bits(size)
         } else {
             None
