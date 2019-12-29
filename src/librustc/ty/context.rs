@@ -51,7 +51,6 @@ use crate::util::nodemap::{FxHashMap, FxHashSet};
 
 use arena::SyncDroplessArena;
 use errors::DiagnosticBuilder;
-use rustc_data_structures::fx::FxHasher;
 use rustc_data_structures::profiling::SelfProfilerRef;
 use rustc_data_structures::sharded::ShardedHashMap;
 use rustc_data_structures::stable_hasher::{
