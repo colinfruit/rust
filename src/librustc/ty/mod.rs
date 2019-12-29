@@ -1686,7 +1686,7 @@ impl<'tcx> ParamEnv<'tcx> {
         }*/
         let mut new_env = self;
         //new_env.caller_bounds = tcx.normalize_caller_bounds(self.caller_bounds);
-        /*let mut cache = tcx.caller_bounds_cache.lock();
+        let mut cache = tcx.caller_bounds_cache.lock();
 
         let entry = cache.entry(&self.caller_bounds);
 
@@ -1702,7 +1702,7 @@ impl<'tcx> ParamEnv<'tcx> {
         };
         //.or_insert_with(|| tcx.normalize_impl_trait_types(&self.caller_bounds));
         new_env.caller_bounds = new_bounds;
-        drop(cache);*/
+        drop(cache);
 
         new_env.reveal = Reveal::All;
         new_env
