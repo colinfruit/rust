@@ -94,6 +94,7 @@ pub use self::structural_match::NonStructuralMatchTy;
 pub use self::trait_def::TraitDef;
 
 pub use self::query::queries;
+use std::collections::hash_map::Entry;
 
 pub mod adjustment;
 pub mod binding;
@@ -1684,7 +1685,25 @@ impl<'tcx> ParamEnv<'tcx> {
             panic!("Cannot normalize ParamEnv {:?}", self);
         }*/
         let mut new_env = self;
-        new_env.caller_bounds = tcx.normalize_caller_bounds(self.caller_bounds);
+        //new_env.caller_bounds = tcx.normalize_caller_bounds(self.caller_bounds);
+        /*let mut cache = tcx.caller_bounds_cache.lock();
+
+        let entry = cache.entry(&self.caller_bounds);
+
+        let new_bounds = match entry {
+            Entry::Occupied(val) => val.get(),
+            Entry::Vacant(val) => {
+                let normalized = tcx.normalize_impl_trait_types(&self.caller_bounds);
+                if !self.caller_bounds.has_local_value() {
+                    val.insert(normalized);
+                }
+                normalized
+            }
+        };
+        //.or_insert_with(|| tcx.normalize_impl_trait_types(&self.caller_bounds));
+        new_env.caller_bounds = new_bounds;
+        drop(cache);*/
+
         new_env.reveal = Reveal::All;
         new_env
     }
