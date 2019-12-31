@@ -304,7 +304,7 @@ impl<'mir, 'tcx> ConstPropagator<'mir, 'tcx> {
         // we want to see the same instances that codegen will see. This allows us to `resolve()`
         // specializations.
         if !substs.needs_subst() {
-            param_env = param_env.with_reveal_all();
+            param_env = param_env.with_reveal_all_normalized(tcx);
         }
 
         let span = tcx.def_span(def_id);
