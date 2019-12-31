@@ -3221,13 +3221,6 @@ pub fn is_impl_trait_defn(tcx: TyCtxt<'_>, def_id: DefId) -> Option<DefId> {
     None
 }
 
-fn normalize_caller_bounds(
-    tcx: TyCtxt<'tcx>,
-    bounds: &'tcx ty::List<ty::Predicate<'tcx>>,
-) -> &'tcx ty::List<ty::Predicate<'tcx>> {
-    tcx.normalize_impl_trait_types(&bounds)
-}
-
 /// See `ParamEnv` struct definition for details.
 fn param_env(tcx: TyCtxt<'_>, def_id: DefId) -> ParamEnv<'_> {
     // The param_env of an impl Trait type is its defining function's param_env
@@ -3373,7 +3366,6 @@ pub fn provide(providers: &mut ty::query::Providers<'_>) {
         trait_impls_of: trait_def::trait_impls_of_provider,
         instance_def_size_estimate,
         issue33140_self_ty,
-        normalize_caller_bounds,
         ..*providers
     };
 }

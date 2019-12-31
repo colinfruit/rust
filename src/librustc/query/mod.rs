@@ -1151,12 +1151,5 @@ rustc_queries! {
             eval_always
             desc { "looking up enabled feature gates" }
         }
-
-        query normalize_caller_bounds(
-            _: &'tcx ty::List<ty::Predicate<'tcx>>
-        ) -> &'tcx ty::List<ty::Predicate<'tcx>> {
-            no_force
-            desc { "normalizing caller bounds" }
-        }
     }
 }
