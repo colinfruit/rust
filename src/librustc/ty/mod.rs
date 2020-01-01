@@ -1681,11 +1681,13 @@ impl<'tcx> ParamEnv<'tcx> {
     /// All opaque types in the caller_bounds of the `ParamEnv`
     /// will be normalized to their underlying types.
     pub fn with_reveal_all_normalized(self, tcx: TyCtxt<'tcx>) -> Self {
+        if self.reveal == Reveal::All {
+            return self;
+        }
         /*if self.has_local_value() {
             panic!("Cannot normalize ParamEnv {:?}", self);
         }*/
         let mut new_env = self;
-        //new_env.caller_bounds = tcx.normalize_caller_bounds(self.caller_bounds);
         let mut cache = tcx.caller_bounds_cache.lock();
 
         let entry = cache.entry(&self.caller_bounds);
