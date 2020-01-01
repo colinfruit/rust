@@ -72,7 +72,7 @@ impl Inliner<'tcx> {
 
         // For monomorphic functions, we can use `Reveal::All` to resolve specialized instances.
         if !substs.needs_subst() {
-            param_env = param_env.with_reveal_all();
+            param_env = param_env.with_reveal_all_normalized(self.tcx);
         }
 
         // Only do inlining into fn bodies.

@@ -744,7 +744,7 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
                 let substs = self.tables.node_substs(id);
                 // Use `Reveal::All` here because patterns are always monomorphic even if their function isn't.
                 match self.tcx.const_eval_resolve(
-                    self.param_env.with_reveal_all(),
+                    self.param_env.with_reveal_all_normalized(self.tcx),
                     def_id,
                     substs,
                     Some(span),

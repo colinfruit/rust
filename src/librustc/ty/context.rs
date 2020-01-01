@@ -997,6 +997,9 @@ pub struct GlobalCtxt<'tcx> {
     /// Merge this with `selection_cache`?
     pub evaluation_cache: traits::EvaluationCache<'tcx>,
 
+    pub caller_bounds_cache:
+        Lock<FxHashMap<&'tcx ty::List<ty::Predicate<'tcx>>, &'tcx ty::List<ty::Predicate<'tcx>>>>,
+
     /// The definite name of the current crate after taking into account
     /// attributes, commandline parameters, etc.
     pub crate_name: Symbol,
@@ -1210,6 +1213,7 @@ impl<'tcx> TyCtxt<'tcx> {
             rcache: Default::default(),
             selection_cache: Default::default(),
             evaluation_cache: Default::default(),
+            caller_bounds_cache: Lock::new(Default::default()),
             crate_name: Symbol::intern(crate_name),
             data_layout,
             layout_interner: Default::default(),

@@ -907,6 +907,7 @@ impl LayoutDetails {
 /// layouts for which Rust types do not exist, such as enum variants
 /// or synthetic fields of enums (i.e., discriminants) and fat pointers.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(HashStable_Generic)]
 pub struct TyLayout<'a, Ty> {
     pub ty: Ty,
     pub details: &'a LayoutDetails,

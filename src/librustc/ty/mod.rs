@@ -94,6 +94,7 @@ pub use self::structural_match::NonStructuralMatchTy;
 pub use self::trait_def::TraitDef;
 
 pub use self::query::queries;
+use std::collections::hash_map::Entry;
 
 pub mod adjustment;
 pub mod binding;
@@ -1654,7 +1655,7 @@ impl<'tcx> ParamEnv<'tcx> {
     /// environments like codegen or doing optimizations.
     ///
     /// N.B., if you want to have predicates in scope, use `ParamEnv::new`,
-    /// or invoke `param_env.with_reveal_all()`.
+    /// or invoke `param_env.with_reveal_all_normalized()`.
     #[inline]
     pub fn reveal_all() -> Self {
         Self::new(List::empty(), Reveal::All, None)
@@ -1676,8 +1677,37 @@ impl<'tcx> ParamEnv<'tcx> {
     /// the desired behavior during codegen and certain other special
     /// contexts; normally though we want to use `Reveal::UserFacing`,
     /// which is the default.
-    pub fn with_reveal_all(self) -> Self {
-        ty::ParamEnv { reveal: Reveal::All, ..self }
+    ///
+    /// All opaque types in the caller_bounds of the `ParamEnv`
+    /// will be normalized to their underlying types.
+    pub fn with_reveal_all_normalized(self, tcx: TyCtxt<'tcx>) -> Self {
+        if self.reveal == Reveal::All {
+            return self;
+        }
+        /*if self.has_local_value() {
+            panic!("Cannot normalize ParamEnv {:?}", self);
+        }*/
+        let mut new_env = self;
+        let mut cache = tcx.caller_bounds_cache.lock();
+
+        let entry = cache.entry(&self.caller_bounds);
+
+        let new_bounds = match entry {
+            Entry::Occupied(val) => val.get(),
+            Entry::Vacant(val) => {
+                let normalized = tcx.normalize_impl_trait_types(&self.caller_bounds);
+                if !self.caller_bounds.has_local_value() {
+                    val.insert(normalized);
+                }
+                normalized
+            }
+        };
+        //.or_insert_with(|| tcx.normalize_impl_trait_types(&self.caller_bounds));
+        new_env.caller_bounds = new_bounds;
+        drop(cache);
+
+        new_env.reveal = Reveal::All;
+        new_env
     }
 
     /// Returns this same environment but with no caller bounds.

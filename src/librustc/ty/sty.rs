@@ -2369,15 +2369,30 @@ impl<'tcx> Const<'tcx> {
         ty: Ty<'tcx>,
     ) -> Option<u128> {
         assert_eq!(self.ty, ty);
-        let size = tcx.layout_of(param_env.with_reveal_all().and(ty)).ok()?.size;
+        // Note that `layout_of` will call `with_reveal_all_normalized` for us
+        let size = tcx.layout_of(param_env.and(ty)).ok()?.size;
         // if `ty` does not depend on generic parameters, use an empty param_env
         self.eval(tcx, param_env).val.try_to_bits(size)
     }
 
     #[inline]
     pub fn eval(&self, tcx: TyCtxt<'tcx>, param_env: ParamEnv<'tcx>) -> &Const<'tcx> {
-        let try_const_eval = |did, param_env: ParamEnv<'tcx>, substs| {
-            let param_env_and_substs = param_env.with_reveal_all().and(substs);
+        let try_const_eval = |did, param_env: ParamEnv<'tcx>, substs: SubstsRef<'tcx>| {
+            // See if we can bail out early without calling 'with_reveal_all_normalized'i
+            // The behavior of `ParamEnv.and` is affected by the reveal mode
+            // (which is set by `with_reveal_all_normalized`).
+            // This means that we can't simply call 'param_env.and(substs).has_local_value()',
+            // since `ParamEnv.and` might discard the caller bounds (which might have inference
+            // vars) after we call `with_reveal_all_normalized`.
+            //
+            // To avoid depending on the precise behavior of `ParamEnv.and`, or needing
+            // to manually set the `ParamEnv` reveal mode, we only check the substs.
+            // If the substs have any inference variables, then the `ParamEnvAnd` is guaranteed
+            // to as well, so there's no risk of bailing out incorrectly.
+            if substs.has_local_value() {
+                return None;
+            }
+            let param_env_and_substs = param_env.with_reveal_all_normalized(tcx).and(substs);
 
             // Avoid querying `tcx.const_eval(...)` with any e.g. inference vars.
             if param_env_and_substs.has_local_value() {
