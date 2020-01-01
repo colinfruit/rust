@@ -1,5 +1,5 @@
 use crate::session::{self, DataTypeKind};
-use crate::ty::{self, subst::SubstsRef, ReprOptions, Ty, TyCtxt, TypeFoldable};
+use crate::ty::{self, subst::SubstsRef, ReprOptions, Reveal, Ty, TyCtxt, TypeFoldable};
 
 use syntax::ast::{self, Ident, IntTy, UintTy};
 use syntax::attr;
@@ -184,10 +184,12 @@ impl<'tcx> fmt::Display for LayoutError<'tcx> {
 fn layout_raw<'tcx>(
     tcx: TyCtxt<'tcx>,
     query: ty::ParamEnvAnd<'tcx, Ty<'tcx>>,
-) -> Result<&'tcx LayoutDetails, LayoutError<'tcx>> {
+) -> Result<TyLayout<'tcx>, LayoutError<'tcx>> {
     ty::tls::with_related_context(tcx, move |icx| {
         let rec_limit = *tcx.sess.recursion_limit.get();
-        let (param_env, ty) = query.into_parts();
+        let (mut param_env, mut ty) = query.into_parts();
+        param_env = param_env.with_reveal_all_normalized(tcx);
+        ty = tcx.normalize_erasing_regions(param_env, ty);
 
         if icx.layout_depth > rec_limit {
             tcx.sess.fatal(&format!("overflow representing the type `{}`", ty));
@@ -205,7 +207,7 @@ fn layout_raw<'tcx>(
                     assert!(layout.abi.is_uninhabited());
                 }
             }
-            layout
+            layout.map(|details| TyLayout { ty, details: details })
         })
     })
 }
@@ -780,7 +782,9 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                 let present_first = match present_first {
                     present_first @ Some(_) => present_first,
                     // Uninhabited because it has no variants, or only absent ones.
-                    None if def.is_enum() => return tcx.layout_raw(param_env.and(tcx.types.never)),
+                    None if def.is_enum() => {
+                        return Ok(tcx.layout_raw(param_env.and(tcx.types.never))?.details);
+                    }
                     // if it's a struct, still compute a layout so that we can still compute the
                     // field offsets
                     None => Some(VariantIdx::new(0)),
@@ -1232,7 +1236,7 @@ impl<'tcx> LayoutCx<'tcx, TyCtxt<'tcx>> {
                 if ty == normalized {
                     return Err(LayoutError::Unknown(ty));
                 }
-                tcx.layout_raw(param_env.and(normalized))?
+                tcx.layout_raw(param_env.and(normalized))?.details
             }
 
             ty::Bound(..)
@@ -1935,10 +1939,12 @@ impl<'tcx> LayoutOf for LayoutCx<'tcx, TyCtxt<'tcx>> {
     /// Computes the layout of a type. Note that this implicitly
     /// executes in "reveal all" mode.
     fn layout_of(&self, ty: Ty<'tcx>) -> Self::TyLayout {
-        let param_env = self.param_env.with_reveal_all_normalized(self.tcx);
-        let ty = self.tcx.normalize_erasing_regions(param_env, ty);
-        let details = self.tcx.layout_raw(param_env.and(ty))?;
-        let layout = TyLayout { ty, details };
+        //let param_env = self.param_env.with_reveal_all_normalized(self.tcx);
+        //let ty = self.tcx.normalize_erasing_regions(param_env, ty);
+        let ty = self.tcx.erase_regions(&ty);
+        let mut param_env = self.param_env;
+        param_env.reveal = Reveal::All;
+        let layout = self.tcx.layout_raw(param_env.and(ty))?;
 
         // N.B., this recording is normally disabled; when enabled, it
         // can however trigger recursive invocations of `layout_of`.
@@ -1959,10 +1965,12 @@ impl LayoutOf for LayoutCx<'tcx, ty::query::TyCtxtAt<'tcx>> {
     /// Computes the layout of a type. Note that this implicitly
     /// executes in "reveal all" mode.
     fn layout_of(&self, ty: Ty<'tcx>) -> Self::TyLayout {
-        let param_env = self.param_env.with_reveal_all_normalized(*self.tcx);
-        let ty = self.tcx.normalize_erasing_regions(param_env, ty);
-        let details = self.tcx.layout_raw(param_env.and(ty))?;
-        let layout = TyLayout { ty, details };
+        //let param_env = self.param_env.with_reveal_all_normalized(*self.tcx);
+        //let ty = self.tcx.normalize_erasing_regions(param_env, ty);
+        let ty = self.tcx.erase_regions(&ty);
+        let mut param_env = self.param_env;
+        param_env.reveal = Reveal::All;
+        let layout = self.tcx.layout_raw(param_env.and(ty))?;
 
         // N.B., this recording is normally disabled; when enabled, it
         // can however trigger recursive invocations of `layout_of`.
